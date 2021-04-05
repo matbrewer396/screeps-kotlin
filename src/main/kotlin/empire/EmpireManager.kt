@@ -40,9 +40,9 @@ private fun removeDeadCreep(creepName: String) {
     val jobId = Memory.creeps[creepName]?.job_id
     if (jobId !== null) {
         for ((_, room) in Game.rooms) {
-            room.memory.jobs.forEach {
-                if (it.assignedCreeps.contains(creepName)) {
-                    it.assignedCreeps = it.assignedCreeps.filter { it !== creepName }.toTypedArray()
+            room.memory.jobs.forEach { it ->
+                if (it.assignedCreeps.filter { ls -> ls.creepName == creepName }.isNotEmpty()) {
+                    it.assignedCreeps = it.assignedCreeps.filter { ls -> ls.creepName !== creepName }.toTypedArray()
                 }
             }
         }

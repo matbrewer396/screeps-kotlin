@@ -4,5 +4,6 @@ enum class ActionOutcome {
     OK,
     COMPLETED,
     ERROR,
-    INVALID
+    INVALID,
+    COMPLETED_ALREADY,
 }
