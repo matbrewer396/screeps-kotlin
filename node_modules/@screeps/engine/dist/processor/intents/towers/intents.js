@@ -1,0 +1,7 @@
+'use strict';
+
+module.exports = function (object, objectIntents, scope) {
+
+    if (objectIntents.heal) require('./heal')(object, objectIntents.heal, scope);else if (objectIntents.repair) require('./repair')(object, objectIntents.repair, scope);else if (objectIntents.attack) require('./attack')(object, objectIntents.attack, scope);
+};
+//# sourceMappingURL=../../../sourcemaps/processor/intents/towers/intents.js.map
