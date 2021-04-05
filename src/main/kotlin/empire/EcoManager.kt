@@ -13,6 +13,7 @@ import log.log
 import memory.*
 import room.getJobRequireingCreeps
 import screeps.api.*
+import screeps.api.structures.StructureExtension
 import screeps.api.structures.StructureSpawn
 import screeps.utils.unsafe.delete
 import screeps.utils.unsafe.jsObject
@@ -29,6 +30,12 @@ class EcoManager {
         //Process Rooms
         for ((_, room) in Game.rooms) {
             processRoom(room)
+
+            if (Game.time >= room.memory.planNextCheck ) {
+                val bm = BaseBuilder()
+                bm.planMaker(room)
+            }
+
         }
     }
 
@@ -84,7 +91,23 @@ class EcoManager {
             }
         }
 
-        room.find(FIND_CONSTRUCTION_SITES).forEach {
+        room.find(FIND_MY_STRUCTURES).filter { it.structureType == STRUCTURE_EXTENSION }
+            .unsafeCast<List<StructureExtension>>().forEach {
+            if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+                jobs.add(
+                    Job.createDropOffJob(it.id,
+                        it.pos,
+                        RESOURCE_ENERGY,
+                        it.store.getFreeCapacity(RESOURCE_ENERGY) as Int,
+                        JobType.DROP_OFF_ENERGY
+                    )
+                )
+            }
+        }
+
+        val constructionSite = room.find(FIND_CONSTRUCTION_SITES)
+        constructionSite.sortByDescending { it.progress }
+        constructionSite.forEach {
             jobs.add(
                 Job.createDropOffJob(it.id,
                     it.pos,
@@ -160,8 +183,8 @@ class EcoManager {
             val mainSpawn = room.find(FIND_MY_SPAWNS)[0]
 
             if (room.find(FIND_MY_CREEPS).isNotEmpty()
-                && mainSpawn.store.getUsedCapacity(RESOURCE_ENERGY) < 500000 // TODO: Max worker Size
-                && mainSpawn.store.getFreeCapacity(RESOURCE_ENERGY) > 0
+                && room.energyAvailable < 500000 // TODO: Max worker Size
+                && room.energyAvailable < room.energyCapacityAvailable
             ){ return } // Wait for spawn to be full before building
 
             val bodyMakeUp = listOf<BodyPartConstant>(WORK, MOVE, CARRY)
@@ -187,4 +210,5 @@ class EcoManager {
         )
     }
 }
+
 

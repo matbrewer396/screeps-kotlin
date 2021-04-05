@@ -59,11 +59,9 @@ data class Job (
         return JobType.valueOf(jobType)
     }
 
-//    fun getJobId():String {
-//        return "${roomPos.roomName}-${jobType.name}-${roomPos.x}-${roomPos.y}"
-//    }
-
-
-
-
 }
+
+data class AssignmentEntry (
+    var assignedCreeps: String,
+    var requestedUnit: Int?
+)
