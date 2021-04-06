@@ -26,7 +26,7 @@ class EcoJobFinder {
         return jobs
     }
 
-    fun findContainerToWithDraw(room: Room): MutableList<Job> {
+    fun containerToWithDraw(room: Room): MutableList<Job> {
         var jobs = mutableListOf<Job>()
         room.find(FIND_STRUCTURES)
             .filter { it.structureType == STRUCTURE_CONTAINER }
@@ -64,7 +64,7 @@ class EcoJobFinder {
         return jobs
     }
 
-    fun refillSpwan(room: Room): MutableList<Job> {
+    fun refillSpawn(room: Room): MutableList<Job> {
         var jobs = mutableListOf<Job>()
         room.find(FIND_MY_SPAWNS).forEach {
             if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
@@ -100,6 +100,25 @@ class EcoJobFinder {
     fun refillTowers(room: Room): MutableList<Job> {
         var jobs = mutableListOf<Job>()
         room.find(FIND_MY_STRUCTURES).filter { it.structureType == STRUCTURE_TOWER }
+            .unsafeCast<List<StructureTower>>().forEach {
+                if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+                    jobs.add(
+                        Job.createJob(
+                            it.id,
+                            it.pos,
+                            RESOURCE_ENERGY,
+                            it.store.getFreeCapacity(RESOURCE_ENERGY) as Int,
+                            JobType.DROP_OFF_ENERGY
+                        )
+                    )
+                }
+            }
+        return jobs
+    }
+
+    fun storage(room: Room): MutableList<Job> {
+        var jobs = mutableListOf<Job>()
+        room.find(FIND_MY_STRUCTURES).filter { it.structureType == STRUCTURE_STORAGE }
             .unsafeCast<List<StructureTower>>().forEach {
                 if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
                     jobs.add(

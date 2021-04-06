@@ -18,7 +18,6 @@ import room.getJobRequireingCreeps
 import screeps.api.*
 import screeps.api.structures.*
 import screeps.utils.unsafe.jsObject
-import kotlin.js.Console
 
 class EcoManager {
     private val ecoCreeps = mutableListOf<EcoCreep>()
@@ -87,15 +86,17 @@ class EcoManager {
                 + jobFinder.findMiningStations(room)
                 // Get Energy
                 + jobFinder.abandonedResources(room)
-                + jobFinder.findContainerToWithDraw(room)
+                + jobFinder.containerToWithDraw(room)
                 + jobFinder.findSourcesToHarvest(room)
                 // Refill
-                + jobFinder.refillSpwan(room)
+                + jobFinder.refillSpawn(room)
                 + jobFinder.refillTowers(room)
                 //Work
                 + jobFinder.constructionSite(room)
                 + jobFinder.repairStrictures(room)
                 + jobFinder.upgradeController(room)
+                + jobFinder.storage(room)
+
             ) as MutableList<Job>
 
 
