@@ -41,9 +41,9 @@ class WorkerCreep(private val creep: Creep):EcoCreep {
         log(LogLevel.DEBUG,"ActionOutcome $r","performTask",creep.name)
         when (r) {
             ActionOutcome.OK -> return true
-            ActionOutcome.COMPLETED_ALREADY -> creep.completeJob() //TODO: can do something else this tick
-            ActionOutcome.COMPLETED -> creep.completeJob()
-            ActionOutcome.INVALID -> creep.completeJob() // task might of been completed by another creep
+            ActionOutcome.COMPLETED_ALREADY -> creep.completeJob(job!!) //TODO: can do something else this tick
+            ActionOutcome.COMPLETED -> creep.completeJob(job!!)
+            ActionOutcome.INVALID -> creep.completeJob(job!!) // task might of been completed by another creep
             else -> log(LogLevel.ERROR,"Unhandled result $r, for ${job!!.jobType}","performTask",creep.name)
         }
 

@@ -14,8 +14,13 @@ class EmpireManager {
     fun runEmpire() {
         log(LogLevel.ALWAYS, "Starting ---------------------------------------------------------------------------------------", "EmpireManager", "runEmpire")
 
+        var mm = MititaryManager()
+        mm.run()
+
         var em = EcoManager()
         em.run()
+
+
 
         //delete memories of creeps that have passed away
         cleanUpTheDead(Game.creeps)

@@ -1,6 +1,6 @@
 package empire
 
-import RoomPosition.*
+import screepPrototype.*
 import config.startBuildingRoadAtRCl
 import log.*
 import memory.*
@@ -16,6 +16,9 @@ class BaseBuilder() {
 //        room.find(FIND_CONSTRUCTION_SITES).forEach {
 //            it.remove()
 //        }
+
+
+
 
         if (room.memory.plan.isEmpty()) {
             log(LogLevel.DEBUG, "Starting plan for room ${room.name}", "planMaker", "")
@@ -57,7 +60,6 @@ class BaseBuilder() {
                 }.forEach { buildSites.add(it) }
             }
             processSpwanPos(room)
-            console.log(planStructures[359].rcl)
             room.memory.plan = planStructures.toTypedArray()
         } else {
             log(LogLevel.DEBUG, "exiting plan for room ${room.name}", "planMaker", "")
@@ -68,6 +70,13 @@ class BaseBuilder() {
                 planStructure(it.pos,it.structureConstant,it.rcl,room, false)
                 if (it.rcl <= room.controller?.level ?: -1) {
                     var r = room.createConstructionSite(it.pos.x,it.pos.y,it.structureConstant)
+                    when (r) {
+                        OK ->  log(LogLevel.DEBUG, "New site created ${it.structureConstant} (${it.pos.x},${it.pos.y})", "planMaker", "")
+                        ERR_RCL_NOT_ENOUGH -> {}
+                        else ->  log(LogLevel.ERROR, "New site fail to create ${r} - ${it.structureConstant} (${it.pos.x},${it.pos.y})", "planMaker", "")
+
+                    }
+
                 }
            }
         }
@@ -91,9 +100,9 @@ class BaseBuilder() {
             +room.find(FIND_MY_STRUCTURES).filter { it.structureType == nextObject }.size
             var rcl: Int = 8
 
-            for (i in 1..8) {
-                if (CONTROLLER_STRUCTURES[nextObject]?.get(i) >= countOfPlanned) {
-                    rcl = i
+            for (j in 1..8) {
+                if (CONTROLLER_STRUCTURES[nextObject]?.get(j) >= countOfPlanned) {
+                    rcl = j
                     break
                 }
             }

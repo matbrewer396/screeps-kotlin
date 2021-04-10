@@ -1,11 +1,8 @@
 package empire.eco
 
-import job.Job
-import job.JobType
+import job.*
 import screeps.api.*
-import screeps.api.structures.StructureContainer
-import screeps.api.structures.StructureExtension
-import screeps.api.structures.StructureTower
+import screeps.api.structures.*
 
 class EcoJobFinder {
 
@@ -31,7 +28,7 @@ class EcoJobFinder {
         room.find(FIND_STRUCTURES)
             .filter { it.structureType == STRUCTURE_CONTAINER }
             .unsafeCast<List<StructureContainer>>()
-            .forEach { it: StructureContainer ->
+            .forEach {
                 if (it.store.getUsedCapacity(RESOURCE_ENERGY)> 10) {
                     jobs.add(
                         Job.createJob(
@@ -39,7 +36,28 @@ class EcoJobFinder {
                             roomPos = it.pos,
                             resource = RESOURCE_ENERGY,
                             requestedUnit = it.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0,
-                            jobType = JobType.WITHDRAW
+                            jobType = JobType.WITHDRAW,
+                            subJobType = SubJobType.STRUCTURE_CONTAINER,
+                            structureType = it.structureType
+                        )
+                    )
+                }
+            }
+
+        room.find(FIND_STRUCTURES)
+            .filter { it.structureType == STRUCTURE_STORAGE }
+            .unsafeCast<List<StructureStorage>>()
+            .forEach {
+                if (it.store.getUsedCapacity(RESOURCE_ENERGY)> 500) {
+                    jobs.add(
+                        Job.createJob(
+                            target_id = it.id,
+                            roomPos = it.pos,
+                            resource = RESOURCE_ENERGY,
+                            requestedUnit = it.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0,
+                            jobType = JobType.WITHDRAW,
+                            subJobType = SubJobType.STRUCTURE_STORAGE,
+                            structureType = it.structureType
                         )
                     )
                 }
@@ -74,7 +92,9 @@ class EcoJobFinder {
                         it.pos,
                         RESOURCE_ENERGY,
                         it.store.getFreeCapacity(RESOURCE_ENERGY) as Int,
-                        JobType.DROP_OFF_ENERGY
+                        JobType.DROP_OFF_ENERGY,
+                        subJobType = SubJobType.STRUCTURE_SPAWN,
+                        structureType = it.structureType
                     )
                 )
             }
@@ -89,7 +109,9 @@ class EcoJobFinder {
                             it.pos,
                             RESOURCE_ENERGY,
                             it.store.getFreeCapacity(RESOURCE_ENERGY) as Int,
-                            JobType.DROP_OFF_ENERGY
+                            JobType.DROP_OFF_ENERGY,
+                            subJobType = SubJobType.STRUCTURE_EXTENSION,
+                            structureType = it.structureType
                         )
                     )
                 }
@@ -108,7 +130,9 @@ class EcoJobFinder {
                             it.pos,
                             RESOURCE_ENERGY,
                             it.store.getFreeCapacity(RESOURCE_ENERGY) as Int,
-                            JobType.DROP_OFF_ENERGY
+                            JobType.DROP_OFF_ENERGY,
+                            subJobType = SubJobType.NONE,
+                            structureType = it.structureType
                         )
                     )
                 }
@@ -127,7 +151,9 @@ class EcoJobFinder {
                             it.pos,
                             RESOURCE_ENERGY,
                             it.store.getFreeCapacity(RESOURCE_ENERGY) as Int,
-                            JobType.DROP_OFF_ENERGY
+                            JobType.DROP_OFF_ENERGY,
+                            subJobType = SubJobType.STRUCTURE_STORAGE,
+                            structureType = it.structureType
                         )
                     )
                 }
@@ -140,13 +166,16 @@ class EcoJobFinder {
         val constructionSite = room.find(FIND_CONSTRUCTION_SITES)
         constructionSite.sortByDescending { it.progress }
         constructionSite.forEach {
+            it.structureType
             jobs.add(
                 Job.createJob(
                     it.id,
                     it.pos,
                     RESOURCE_ENERGY,
                     it.progressTotal,
-                    JobType.BUILD
+                    JobType.BUILD,
+                    SubJobType.NONE,
+                    it.structureType
                 )
             )
         }
@@ -155,12 +184,11 @@ class EcoJobFinder {
 
     fun repairStrictures(room: Room): MutableList<Job> {
         var jobs = mutableListOf<Job>()
-        room.find(FIND_MY_STRUCTURES)
+        room.find(FIND_STRUCTURES)
             .filter {
-
                 it.structureType !== STRUCTURE_WALL
                         && it.structureType !== STRUCTURE_CONTROLLER
-                        && it.hits < (it.hitsMax * 0.70)
+                        && it.hits < (it.hitsMax * 0.90)
             }
             .forEach {
                 jobs.add(
@@ -169,7 +197,9 @@ class EcoJobFinder {
                         it.pos,
                         RESOURCE_ENERGY,
                         (it.hitsMax - it.hits),
-                        JobType.REPAIR
+                        JobType.REPAIR,
+                        SubJobType.NONE,
+                        structureType = it.structureType
                     )
                 )
             }
@@ -184,7 +214,9 @@ class EcoJobFinder {
                 it.pos,
                 RESOURCE_ENERGY,
                 -1,
-                JobType.UPGRADE_CONTROLLER
+                JobType.UPGRADE_CONTROLLER,
+                SubJobType.NONE,
+                structureType = it.structureType
             )
         }?.let {
             jobs.add(
@@ -206,7 +238,9 @@ class EcoJobFinder {
                             roomPos = it.pos,
                             resource = it.resourceType,
                             requestedUnit = it.amount,
-                            jobType = JobType.PICKUP
+                            jobType = JobType.PICKUP,
+                            subJobType = SubJobType.NONE,
+                            structureType = null
                         )
                     )
                 }
@@ -220,7 +254,9 @@ class EcoJobFinder {
                             roomPos = it.pos,
                             resource = RESOURCE_ENERGY,
                             requestedUnit = it.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0,
-                            jobType = JobType.WITHDRAW
+                            jobType = JobType.WITHDRAW,
+                            subJobType = SubJobType.TOMBSTONES,
+                            structureType = null
                         )
                     )
                 }
@@ -235,7 +271,9 @@ class EcoJobFinder {
                             roomPos = it.pos,
                             resource = RESOURCE_ENERGY,
                             requestedUnit = it.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0,
-                            jobType = JobType.WITHDRAW
+                            jobType = JobType.WITHDRAW,
+                            subJobType = SubJobType.RUINS,
+                            structureType = null
                         )
                     )
                 }

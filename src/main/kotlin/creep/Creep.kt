@@ -1,6 +1,8 @@
 package creep
 
 import job.Job
+import job.JobType
+import job.SubJobType
 import log.LogLevel
 import log.log
 import memory.*
@@ -11,8 +13,10 @@ fun Creep.getJob(): Job? {
     return room.memory.jobs.find{ it.job_id == memory.job_id}
 }
 
-fun Creep.completeJob() {
-    log(LogLevel.DEBUG,"Complete Job ${memory.job_id}","completeJob",name)
+fun Creep.completeJob(job: Job) {
+    log(LogLevel.DEBUG,"Complete Job ${memory.job_id} - ${job.jobType} - ${job.subJobType}","completeJob",name)
+
+
     if ( memory.job_id !== "") {  removeFromJob(memory.job_id) }
 }
 fun Creep.removeFromJob(jobId: String) {

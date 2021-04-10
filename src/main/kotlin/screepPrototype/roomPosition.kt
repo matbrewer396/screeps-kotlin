@@ -1,4 +1,4 @@
-package RoomPosition
+package screepPrototype
 
 import screeps.api.*
 /*
@@ -28,9 +28,13 @@ fun RoomPosition.isBuildable(): Boolean {
 }
 fun RoomPosition.getAdjacentPositions(range: Int) :List<RoomPosition>{
     var positions = mutableListOf<RoomPosition>()
-    positions.add(RoomPosition(x-1,y, roomName))
-    positions.add(RoomPosition(x+1,y, roomName))
-    positions.add(RoomPosition(x,y-1, roomName))
-    positions.add(RoomPosition(x,y+1, roomName))
+
+    for (r in 1..range) {
+        positions.add(RoomPosition(x-r,y, roomName))
+        positions.add(RoomPosition(x+r,y, roomName))
+        positions.add(RoomPosition(x,y-r, roomName))
+        positions.add(RoomPosition(x,y+r, roomName))
+    }
+
     return positions
 }

@@ -1,8 +1,10 @@
 package creep
 
 import job.Job
+import job.SubJobType
 import log.LogLevel
 import log.log
+import memory.lastWithDrawStorageAt
 import screeps.api.*
 import screeps.api.structures.Structure
 import screeps.api.structures.StructureController
@@ -113,6 +115,9 @@ fun Creep.withdrawHandler(job: Job) :ActionOutcome {
     if (target.store.getUsedCapacity(resource)==0)  { return ActionOutcome.COMPLETED_ALREADY }
 
     log(LogLevel.DEBUG,"withdraw to ${target.toString()}","withdrawHandler",name)
+    if (job.subJobType == SubJobType.STRUCTURE_STORAGE) {
+        memory.lastWithDrawStorageAt = Game.time
+    }
 
     var r = withdraw(target, resource)
     when (r)  {

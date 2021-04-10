@@ -1,6 +1,5 @@
 package creep.eco
 
-import RoomPosition.getNearByPositions
 import creep.*
 import job.Job
 import job.JobType
