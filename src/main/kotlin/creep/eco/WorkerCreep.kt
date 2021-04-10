@@ -24,12 +24,12 @@ class WorkerCreep(private val creep: Creep):EcoCreep {
                 creep.memory.job_id = ""
             }
             log(LogLevel.DEBUG,"job not found or idle","performTask",creep.name)
-            return true
+            return false
         }
         var r: ActionOutcome = ActionOutcome.ERROR
         when (JobType.valueOf(job!!.jobType)) {
             JobType.HARVEST_SOURCE ->  r = creep.harvestHandler(job!!.target_id)
-            JobType.DROP_OFF_ENERGY -> r = creep.transferHandler(job!!.target_id, job!!.resource!!)
+            JobType.DROP_OFF_ENERGY -> r = creep.transferHandler(job!!)
             JobType.UPGRADE_CONTROLLER -> r = creep.upgradeControllerHandler(job!!.target_id)
             JobType.BUILD -> r = creep.buildHandler(job!!.target_id)
             JobType.REPAIR -> r = creep.repairHandler(job!!.target_id)

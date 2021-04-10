@@ -8,6 +8,7 @@ import memory.lastWithDrawStorageAt
 import screeps.api.*
 import screeps.api.structures.Structure
 import screeps.api.structures.StructureController
+import screeps.utils.toMap
 
 /*
 * Handler harvesting a source
@@ -32,14 +33,24 @@ fun Creep.harvestHandler(sourceId: String) :ActionOutcome {
 /*
 * T
 * */
-fun Creep.transferHandler(targetId: String, resource: ResourceConstant) :ActionOutcome {
-    if (this.store.getUsedCapacity(resource) == 0) { return ActionOutcome.COMPLETED_ALREADY }
-    var target: StoreOwner = Game.getObjectById<StoreOwner>(targetId) ?: return ActionOutcome.INVALID
-    if (target.store.getFreeCapacity(resource)==0)  { return ActionOutcome.COMPLETED_ALREADY }
+fun Creep.transferHandler(job: Job) :ActionOutcome {
+    var resource: ResourceConstant = job.resource ?: RESOURCE_ENERGY
+    var target: StoreOwner = Game.getObjectById<StoreOwner>(job.target_id) ?: return ActionOutcome.INVALID
+
+    if (job.structureType == STRUCTURE_STORAGE) {
+        if (this.store.getUsedCapacity() == 0) { return ActionOutcome.COMPLETED_ALREADY }
+        if (target.store.getFreeCapacity()==0)  { return ActionOutcome.COMPLETED_ALREADY }
+        // DRop all resources
+        resource = store?.toMap().keys.first()
+    } else {
+        if (this.store.getUsedCapacity(resource) == 0) { return ActionOutcome.COMPLETED_ALREADY }
+        if (target.store.getFreeCapacity(resource)==0)  { return ActionOutcome.COMPLETED_ALREADY }
+    }
+
+
 
     log(LogLevel.DEBUG,"transfer to ${target.toString()}","transferHandler",name)
-
-    var r = transfer(target, resource)
+    var r: ScreepsReturnCode = transfer(target, resource)
     when (r)  {
         OK -> return ActionOutcome.OK
         ERR_NOT_IN_RANGE -> return moveHandler(target.pos)

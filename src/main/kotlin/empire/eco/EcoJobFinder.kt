@@ -1,6 +1,8 @@
 package empire.eco
 
+import creep.CreepRole
 import job.*
+import memory.role
 import screeps.api.*
 import screeps.api.structures.*
 
@@ -14,6 +16,7 @@ class EcoJobFinder {
             .forEach {
                 jobs.add(
                     Job.createSimple(
+                        room,
                         it.id,
                         it.pos,
                         JobType.MINING_STATION
@@ -32,6 +35,7 @@ class EcoJobFinder {
                 if (it.store.getUsedCapacity(RESOURCE_ENERGY)> 10) {
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             target_id = it.id,
                             roomPos = it.pos,
                             resource = RESOURCE_ENERGY,
@@ -51,6 +55,7 @@ class EcoJobFinder {
                 if (it.store.getUsedCapacity(RESOURCE_ENERGY)> 500) {
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             target_id = it.id,
                             roomPos = it.pos,
                             resource = RESOURCE_ENERGY,
@@ -68,12 +73,19 @@ class EcoJobFinder {
 
     fun findSourcesToHarvest(room: Room): MutableList<Job> {
         var jobs = mutableListOf<Job>()
-        room.find(FIND_SOURCES).forEach {
-            if (it.energy > 0) {
+        room.find(FIND_SOURCES).forEach { source ->
+            // Minder near by
+            if (source.pos.findInRange(FIND_MY_CREEPS,2)
+                    .filter { it.memory.role == CreepRole.MINER.name }
+                    .isNotEmpty()
+            ) {return@forEach}
+
+            if (source.energy > 0) {
                 jobs.add(
                     Job.createSimple(
-                        it.id,
-                        it.pos,
+                        room = room,
+                        source.id,
+                        source.pos,
                         JobType.HARVEST_SOURCE
                     )
                 )
@@ -88,6 +100,7 @@ class EcoJobFinder {
             if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
                 jobs.add(
                     Job.createJob(
+                        room = room,
                         it.id,
                         it.pos,
                         RESOURCE_ENERGY,
@@ -105,6 +118,7 @@ class EcoJobFinder {
                 if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             it.id,
                             it.pos,
                             RESOURCE_ENERGY,
@@ -123,9 +137,10 @@ class EcoJobFinder {
         var jobs = mutableListOf<Job>()
         room.find(FIND_MY_STRUCTURES).filter { it.structureType == STRUCTURE_TOWER }
             .unsafeCast<List<StructureTower>>().forEach {
-                if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+                if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 100) {
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             it.id,
                             it.pos,
                             RESOURCE_ENERGY,
@@ -147,6 +162,7 @@ class EcoJobFinder {
                 if (it.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             it.id,
                             it.pos,
                             RESOURCE_ENERGY,
@@ -166,15 +182,23 @@ class EcoJobFinder {
         val constructionSite = room.find(FIND_CONSTRUCTION_SITES)
         constructionSite.sortByDescending { it.progress }
         constructionSite.forEach {
-            it.structureType
+
+            var subJobType:SubJobType = SubJobType.NONE
+            if (it.structureType == STRUCTURE_ROAD) {
+                if (it.pos.lookFor(LOOK_TERRAIN) == TERRAIN_SWAMP) {
+                    subJobType = SubJobType.SWAMP
+                }
+            }
+
             jobs.add(
                 Job.createJob(
+                    room = room,
                     it.id,
                     it.pos,
                     RESOURCE_ENERGY,
                     it.progressTotal,
                     JobType.BUILD,
-                    SubJobType.NONE,
+                    subJobType,
                     it.structureType
                 )
             )
@@ -186,13 +210,32 @@ class EcoJobFinder {
         var jobs = mutableListOf<Job>()
         room.find(FIND_STRUCTURES)
             .filter {
-                it.structureType !== STRUCTURE_WALL
-                        && it.structureType !== STRUCTURE_CONTROLLER
-                        && it.hits < (it.hitsMax * 0.90)
+                (!listOf<StructureConstant>(STRUCTURE_WALL, STRUCTURE_CONTROLLER, STRUCTURE_RAMPART).contains(it.structureType)
+                    && it.hits < (it.hitsMax * 0.90)
+                        )
+                || (it.structureType == STRUCTURE_RAMPART
+                        && it.hits < (it.hitsMax * when (room.controller?.level ?:0) {
+                            5 -> 0.005
+                            6 -> 0.08
+                            7 -> 0.20
+                            8 -> 0.50
+                            else -> 0.00
+                        }
+                        )
+                    )
+
+
             }
+            .sortedBy { when (it.structureType) {
+                STRUCTURE_RAMPART -> 100000000
+                STRUCTURE_WALL -> 1000000000
+                else -> it.hits / it.hitsMax
+            } }
             .forEach {
+                if (jobs.size > 20) {return@forEach} // cause high cpu
                 jobs.add(
                     Job.createJob(
+                        room = room,
                         it.id,
                         it.pos,
                         RESOURCE_ENERGY,
@@ -210,6 +253,7 @@ class EcoJobFinder {
         var jobs = mutableListOf<Job>()
         room.controller?.let {
             Job.createJob(
+                room = room,
                 it.id,
                 it.pos,
                 RESOURCE_ENERGY,
@@ -231,9 +275,12 @@ class EcoJobFinder {
 
         room.find(FIND_DROPPED_RESOURCES)
             .forEach {
-                if (it.amount> 50) { // TODO: Time remaining logic
+                if ( (it.resourceType === RESOURCE_ENERGY && it.amount> 50)
+                    || it.resourceType !== RESOURCE_ENERGY
+                ) { // TODO: Time remaining logic
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             target_id = it.id,
                             roomPos = it.pos,
                             resource = it.resourceType,
@@ -250,6 +297,7 @@ class EcoJobFinder {
                 if (it.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0 > 50) { // TODO: Time remaining logic
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             target_id = it.id,
                             roomPos = it.pos,
                             resource = RESOURCE_ENERGY,
@@ -261,12 +309,31 @@ class EcoJobFinder {
                     )
                 }
             }
+//        room.find(FIND_TOMBSTONES)
+//            .forEach {
+//                val s = it.store.get()
+//                if (it.store.getUsedCapacity() ?: 0 > 50) { // TODO: Time remaining logic
+//                    jobs.add(
+//                        Job.createJob(
+//                            room = room,
+//                            target_id = it.id,
+//                            roomPos = it.pos,
+//                            resource = RESOURCE_ENERGY,
+//                            requestedUnit = it.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0,
+//                            jobType = JobType.WITHDRAW,
+//                            subJobType = SubJobType.TOMBSTONES,
+//                            structureType = null
+//                        )
+//                    )
+//                }
+//            }
 
         room.find(FIND_RUINS)
             .forEach {
                 if (it.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0 > 0) { // TODO: Time remaining logic
                     jobs.add(
                         Job.createJob(
+                            room = room,
                             target_id = it.id,
                             roomPos = it.pos,
                             resource = RESOURCE_ENERGY,

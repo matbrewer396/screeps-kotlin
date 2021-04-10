@@ -1,6 +1,7 @@
 package job
 
 import creep.CreepRole
+import memory.jobs
 import memory.lastWithDrawStorageAt
 import memory.role
 import screeps.api.*
@@ -19,7 +20,8 @@ enum class SubJobType() {
     STRUCTURE_EXTENSION,
     STRUCTURE_SPAWN,
     TOMBSTONES,
-    RUINS
+    RUINS,
+    SWAMP
 
 }
 
@@ -51,7 +53,7 @@ enum class JobType(val validateCreep: (job: Job, creep: Creep) -> Boolean,
         ResourceTransferDirection.OUTBOUND,
         ::jobPriority,
         ::notTowerSuitable),
-    REPAIR(::validateBuild,
+    REPAIR(::validateRepair,
         1,
         ResourceTransferDirection.OUTBOUND,
         ::jobPriority,
@@ -89,14 +91,32 @@ data class Job (
     var structureType: StructureConstant?
 ) {
     companion object {
-        fun createSimple(target_id: String, roomPos: RoomPosition, jobType: JobType) :Job {
-            var jobId: String = "${roomPos.roomName}-${jobType.name}-${roomPos.x}-${roomPos.y}"
-            return Job(target_id,roomPos,jobType.name,arrayOf(),jobId, null, null,SubJobType.NONE, null)
+        fun createSimple(room: Room, target_id: String, roomPos: RoomPosition, jobType: JobType) :Job {
+            return createJob(room,target_id,roomPos,null,0, jobType, SubJobType.NONE, null)
         }
-        fun createJob(target_id: String, roomPos: RoomPosition, resource: ResourceConstant, requestedUnit: Int, jobType: JobType, subJobType: SubJobType, structureType: StructureConstant?) :Job {
-            var jobId: String = "${roomPos.roomName}-${jobType.name}-${roomPos.x}-${roomPos.y}"
-            return Job(target_id,roomPos,jobType.name,arrayOf(),jobId, resource, requestedUnit,subJobType,structureType)
+        fun createJob(room: Room, target_id: String, roomPos: RoomPosition, resource: ResourceConstant?, requestedUnit: Int
+                      , jobType: JobType, subJobType: SubJobType, structureType: StructureConstant?) :Job {
+            var jobId = "${roomPos.roomName}-${jobType.name}-${roomPos.x}-${roomPos.y}"
+
+            //Could be many dropped resources
+            if (JobType.PICKUP == jobType) { jobId += "-$resource"}
+
+            // Find current jobs an assign
+            var assignedCreeps: Array<AssignmentEntry> = arrayOf()
+            room.memory.jobs
+                .filter { it.job_id == jobId }
+                .forEach { memJob ->
+                    memJob.assignedCreeps.forEach {
+                        if (Game.creeps[it.creepName] !== undefined) { // Check creep is still alive
+                            assignedCreeps += AssignmentEntry(it.creepName, it.reservedUnit)
+                        }
+                    }
+                }
+
+            return Job(target_id,roomPos,jobType.name,assignedCreeps,jobId, resource, requestedUnit,subJobType,structureType)
         }
+
+
     }
 
     fun getJobType (): JobType {

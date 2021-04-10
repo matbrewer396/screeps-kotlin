@@ -1,5 +1,6 @@
 package empire
 
+import config.*
 import creep.*
 import creep.CreepType
 import creep.eco.EcoCreep
@@ -14,13 +15,14 @@ import job.ResourceTransferDirection
 import log.LogLevel
 import log.log
 import memory.*
-import room.getJobRequireingCreeps
+import room.getCreepOfRole
 import room.isUnderAttck
 import screeps.api.*
 import screeps.api.structures.*
 import screeps.utils.toMap
 import screeps.utils.unsafe.jsObject
 import kotlin.math.abs
+import kotlin.enumValues as kotlinEnumValues
 
 class EcoManager {
     private val ecoCreeps = mutableListOf<EcoCreep>()
@@ -34,16 +36,16 @@ class EcoManager {
 //        }
         initializeWorkerCreeps()
         initializeTower()
-
         processIdleCreeps()
         processCreeps()
+        processTowers()
 
 
         //Process Rooms
         for ((_, room) in Game.rooms) {
             processRoom(room)
 
-            if (Game.time >= room.memory.planNextCheck) {
+            if (Game.time >= room.memory.planNextCheck || forcePlanOnEveryTick) {
                 val bm = BaseBuilder()
                 bm.planMaker(room)
             }
@@ -51,7 +53,7 @@ class EcoManager {
 
         }
     }
-    fun initializeTower() {
+    private fun initializeTower() {
         Game.rooms.toMap().forEach { m ->
             if (m.value.isUnderAttck()) {return}
             m.value.find(FIND_MY_STRUCTURES)
@@ -65,11 +67,29 @@ class EcoManager {
 
     }
 
+    private fun processTowers() {
+        towers.forEach { tower ->
+            if (tower.room.isUnderAttck()) { return@forEach }
+            if (tower.store.getUsedCapacity(RESOURCE_ENERGY) < 300 ) { return@forEach } // Save for an attack
+
+            var repairJob: Job = tower.room.memory.jobs
+                        .filter { job ->
+                            job.jobType == JobType.REPAIR.name
+                                    && Game.getObjectById<Structure>(job.target_id)?.hits ?: 0 < (Game.getObjectById<Structure>(
+                                job.target_id
+                            )?.hitsMax ?: 0) * 0.95
+                        }.minByOrNull { job -> abs(tower.pos.x - job.roomPos.x) + abs(tower.pos.y - job.roomPos.y) } ?: return@forEach
+            //TODO: sort by range
+            Game.getObjectById<Structure>(repairJob.target_id)?.let { tower.repair(it) }
+
+        }
+    }
+
 
     /*
     * Assign Creep to queues
     * */
-    fun initializeWorkerCreeps() {
+    private fun initializeWorkerCreeps() {
         for (creep in Game.creeps.values) {
             if (creep.my == false) {
                 continue
@@ -98,10 +118,8 @@ class EcoManager {
         }
     }
 
-    fun processIdleCreeps() {
-        if (ecoCreepsIdle.isEmpty()) {
-            return
-        }
+    private fun processIdleCreeps() {
+        if (ecoCreepsIdle.isEmpty()) { return   }
         log(LogLevel.DEBUG, "Processing ${ecoCreepsIdle.size} idle creep", "processIdleCreeps", "")
 
         var jobs = mutableListOf<Job>()
@@ -127,22 +145,11 @@ class EcoManager {
 
             ) as MutableList<Job>
 
+        log(LogLevel.DEBUG, "Jobs found (${jobs.size})", "processIdleCreeps", "")
 
 
-        // Find existing job
-        jobs.forEach { j ->
-            log(LogLevel.DEBUG, "Job found ${j.job_id}", "processIdleCreeps", "")
-            var memJobs: Array<Job> = room.memory.jobs
-            memJobs.forEach { memJob ->
-                if (memJob.job_id == j.job_id) {
-                    log(LogLevel.DEBUG, "Existing Job found ${j.job_id}", "processIdleCreeps", "")
-                    memJob.assignedCreeps.forEach {
-                        if (Game.creeps[it.creepName] !== undefined) { // Check creep is still alive
-                            j.assignedCreeps += AssignmentEntry(it.creepName, it.reservedUnit)
-                        }
-                    }
-                }
-            }
+        kotlinEnumValues<JobType>().forEach { jT ->
+            log(LogLevel.INFO, "Jobs found of type ${jT.name} - (${jobs.filter { it.jobType == jT.name }.size})", "processIdleCreeps", "")
         }
 
 
@@ -180,13 +187,15 @@ class EcoManager {
         room.memory.jobs = jobs.toTypedArray()
     }
 
-    fun processCreeps() {
+    private fun processCreeps() {
         ecoCreeps.forEach {
             it.performTask()
         }
     }
 
     private fun processRoom(room: Room) {
+
+
         // Look for new tasks
         // Assign task if idle
         log(
@@ -196,46 +205,54 @@ class EcoManager {
             room.name
         )
 
+        //Spawn Creep
+        val mainSpawn = room.find(FIND_MY_SPAWNS)[0]
+        // all creep dead?
+        if (room.getCreepOfRole(CreepRole.WORKER) == 0
+            && room.energyAvailable > 150
+        ) {
+            spawnCreepRole(CreepRole.WORKER,mainSpawn,room)
+        }
+
+
+        //For each creep spawn is can
+        kotlinEnumValues<CreepRole>().forEach { creepRole ->
+            //Only create creep if max size can be create
+            if (room.energyAvailable < creepRole.maxBodySize && room.energyAvailable !== room.energyCapacityAvailable) return@forEach
+            //spawn creep
+            spawnCreepRole(creepRole,mainSpawn,room)
+        }
+
+
         if (room.find(FIND_MY_CREEPS).isNotEmpty()
             && room.energyAvailable < 500000 // TODO: Max worker Size
             && room.energyAvailable < room.energyCapacityAvailable
         ) {
             return
         } //Wait for spawn to be full before building
-        val mainSpawn = room.find(FIND_MY_SPAWNS)[0]
-
-        if (room.getJobRequireingCreeps() > 0
-            && room.find(FIND_MY_CREEPS).filter { it.memory.role == CreepRole.WORKER.name }.size < CreepRole.WORKER.maxNumber) {
-            val energyAvailable = if (room.energyAvailable > CreepRole.CARRIER.maxBodySize) {CreepRole.CARRIER.maxBodySize} else {room.energyAvailable}
-            val bodyMakeUp = listOf<BodyPartConstant>(WORK, MOVE, CARRY)
-            val body = buildBody(bodyMakeUp, bodyMakeUp, energyAvailable)
 
 
-            spawnCreep(body, mainSpawn, CreepRole.WORKER, null)
+    }
+
+    private fun spawnCreepRole(creepRole: CreepRole, spawn: StructureSpawn, room: Room){
+        // Max size
+        val energyAvailable = if (room.energyAvailable > creepRole.maxBodySize) {
+            creepRole.maxBodySize
+        } else {
+            room.energyAvailable
+        }
+        val body = buildBody(creepRole.startingBody, creepRole.recurringBody, energyAvailable)
+
+        //todo move this
+        var jobId: String? = null
+        if (creepRole == CreepRole.MINER) {
+            jobId = room.memory.jobs
+                .first { it.jobType == JobType.MINING_STATION.name && it.assignedCreeps.isEmpty() }
+                .job_id
+            if (jobId == null) return
         }
 
-        // Create minder
-        if (room.memory.jobs
-                .filter {it.jobType == JobType.MINING_STATION.name
-                    && it.assignedCreeps.isEmpty()
-            }.isNotEmpty()
-            && room.find(FIND_SOURCES).size > room.find(FIND_MY_CREEPS).filter { it.memory.role == CreepRole.MINER.name }.size
-        ){
-            val energyAvailable = if (room.energyAvailable > CreepRole.CARRIER.maxBodySize) {CreepRole.CARRIER.maxBodySize} else {room.energyAvailable}
-            val body = buildBody(listOf<BodyPartConstant>(WORK, MOVE), listOf<BodyPartConstant>(WORK), energyAvailable)
-            spawnCreep(body, mainSpawn, CreepRole.MINER,
-                room.memory.jobs.first { it.jobType == JobType.MINING_STATION.name && it.assignedCreeps.isEmpty() }
-                    .job_id
-            )
-        }
-
-        //Create Carriers
-        if (room.find(FIND_MY_CREEPS).filter { it.memory.role == CreepRole.CARRIER.name }.size < CreepRole.CARRIER.maxNumber
-            && room.controller?.level ?: 0 >= 3){
-            val energyAvailable = if (room.energyAvailable > CreepRole.CARRIER.maxBodySize) {CreepRole.CARRIER.maxBodySize} else {room.energyAvailable}
-            val body = buildBody(listOf<BodyPartConstant>(CARRY, MOVE), listOf<BodyPartConstant>(CARRY, MOVE), energyAvailable)
-            spawnCreep(body, mainSpawn, CreepRole.CARRIER, null )
-        }
+        spawnCreep(body, spawn, creepRole, jobId)
     }
 
     private fun spawnCreep(

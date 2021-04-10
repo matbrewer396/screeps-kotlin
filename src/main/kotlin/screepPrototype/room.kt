@@ -2,9 +2,11 @@ package room
 
 import creep.CreepRole
 import job.JobType
+import memory.homeRoom
 import memory.jobs
 import memory.role
 import screeps.api.*
+import screeps.utils.toMap
 
 fun Room.getJobRequireingCreeps(): Int {
     return memory.jobs.filter {
@@ -30,4 +32,10 @@ fun Room.caluateRoomHealth() :RoomHealth {
 
 fun Room.isUnderAttck() :Boolean {
     return find(FIND_HOSTILE_CREEPS).isNotEmpty()
+}
+
+fun Room.getCreepOfRole(role: CreepRole): Int {
+    return Game.creeps.toMap().filter {
+        it.value.memory.role == role.name && it.value.memory.homeRoom == this.name
+    }.size
 }

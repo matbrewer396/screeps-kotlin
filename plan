@@ -1,12 +1,28 @@
 
-
+maxNumber need to be funtion,
+    - spam worker if there jobs todo and we have enerfy todo so
 
 recycle / renew creeps
 
-Tower jobs
+//Tower jobs - hackie working around
 
-nearby room remote harvest
+creeps:
+    - miner
+        - should create a pull job
+        - create next creep before death
+    - commonly used path lay roads
 
 dynamically spwan creeps for job
 Body max size
+
+base builder
+    - if different strurture is already there then dismentable
+
+
+expedition:
+    - recon
+    - nearby room remote harvest
+    - claim
+    - new base builder
+
 

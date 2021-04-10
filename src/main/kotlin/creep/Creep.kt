@@ -30,3 +30,7 @@ fun Creep.removeFromJob(jobId: String) {
     }
     memory.job_id = ""
 }
+
+fun Creep.role(): CreepRole {
+    return CreepRole.valueOf(memory.role)
+}
