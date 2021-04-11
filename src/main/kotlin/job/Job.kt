@@ -26,11 +26,12 @@ enum class SubJobType() {
 }
 
 // All job types
-enum class JobType(val validateCreep: (job: Job, creep: Creep) -> Boolean,
-                   val spawnCreepsIfAssignedLessThen: Int,
-                   var resourceTransferDirection: ResourceTransferDirection,
-                   val jobPriority: (job: Job, creep: Creep, room: Room) -> Int,
-                   val validateTower: (job: Job, tower: StructureTower) -> Boolean
+enum class JobType(
+    val validateCreep: ((job: Job, creep: Creep) -> Boolean),
+    val spawnCreepsIfAssignedLessThen: Int,
+    var resourceTransferDirection: ResourceTransferDirection,
+    val jobPriority: (job: Job, creep: Creep, room: Room) -> Int,
+    val validateTower: (job: Job, tower: StructureTower) -> Boolean
 ) {
     HARVEST_SOURCE(::validateHarvest,
         -1,
@@ -72,7 +73,13 @@ enum class JobType(val validateCreep: (job: Job, creep: Creep) -> Boolean,
         1,
         ResourceTransferDirection.INBOUND,
         ::jobPriority,
-        ::notTowerSuitable)
+        ::notTowerSuitable),
+    RENEW(::validateAllCreeps,
+        0,
+        ResourceTransferDirection.OUTBOUND,
+        ::jobPriority,
+        ::notTowerSuitable),
+
 }
 
 
@@ -114,6 +121,11 @@ data class Job (
                 }
 
             return Job(target_id,roomPos,jobType.name,assignedCreeps,jobId, resource, requestedUnit,subJobType,structureType)
+        }
+
+        fun createRenewJob(creep: Creep) :Job {
+            return Job("",creep.pos, JobType.RENEW.name, arrayOf(), "Renew-${creep.name}"
+                , null, null,SubJobType.NONE,null)
         }
 
 

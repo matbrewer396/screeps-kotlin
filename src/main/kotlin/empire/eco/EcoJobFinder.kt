@@ -216,9 +216,9 @@ class EcoJobFinder {
                 || (it.structureType == STRUCTURE_RAMPART
                         && it.hits < (it.hitsMax * when (room.controller?.level ?:0) {
                             5 -> 0.005
-                            6 -> 0.08
-                            7 -> 0.20
-                            8 -> 0.50
+                            6 -> 0.005
+                            7 -> 0.005
+                            8 -> 0.010
                             else -> 0.00
                         }
                         )

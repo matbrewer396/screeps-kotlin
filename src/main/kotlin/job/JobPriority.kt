@@ -17,9 +17,12 @@ fun jobPriority(job: Job, creep: Creep, room: Room):Int {
         JobType.HARVEST_SOURCE      -> default
 
         JobType.DROP_OFF_ENERGY     ->
-
-            if (creep.role() == CreepRole.CARRIER && prioityStructureConstant.contains(job.structureType) ) {
-                1000
+            if (creep.store.getUsedCapacity() !== creep.store.getUsedCapacity(RESOURCE_ENERGY) ?: 0
+                && job.structureType == STRUCTURE_STORAGE ) {
+                // Carrying more then energy
+                -10000
+            } else if (creep.role() == CreepRole.CARRIER && prioityStructureConstant.contains(job.structureType) ) {
+                if(job.structureType == STRUCTURE_SPAWN) {1001} else {1000} // Spawn regen
             }
             // Room starting off or all CARRIER died
             else if (
@@ -28,7 +31,7 @@ fun jobPriority(job: Job, creep: Creep, room: Room):Int {
                 && ( room.getCreepOfRole(CreepRole.CARRIER) == 0 || room.storage?.store?.getUsedCapacity(RESOURCE_ENERGY) ?: 9999999 < 5000
                 )
             ) {
-                1000
+                if(job.structureType == STRUCTURE_SPAWN) {1001} else {1000} // Spawn regen
             }
             else {default}
 
@@ -43,7 +46,8 @@ fun jobPriority(job: Job, creep: Creep, room: Room):Int {
             STRUCTURE_SPAWN -> 4011
             STRUCTURE_EXTENSION -> 4012
             STRUCTURE_TOWER -> 4013
-            STRUCTURE_CONTAINER -> 3014
+
+            STRUCTURE_CONTAINER -> 1500 //3014 if not minder
 
             STRUCTURE_STORAGE -> 4500
             STRUCTURE_ROAD -> if (job.subJobType == SubJobType.SWAMP && room.controller?.level ?: 0 == 1) {
@@ -70,7 +74,13 @@ fun jobPriority(job: Job, creep: Creep, room: Room):Int {
             SubJobType.STRUCTURE_STORAGE -> 2600
             else -> 2500
         }
-        JobType.PICKUP              -> 1000
+        JobType.PICKUP              -> when (job.resource) {
+            RESOURCE_ENERGY -> 1000
+            else ->  -1000 // pick up all the rare resources dropped
+        }
+
+
+        JobType.RENEW               -> 0
     }
 
 }

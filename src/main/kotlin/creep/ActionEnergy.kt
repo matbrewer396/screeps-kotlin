@@ -14,7 +14,7 @@ import screeps.utils.toMap
 * Handler harvesting a source
 * */
 fun Creep.harvestHandler(sourceId: String) :ActionOutcome {
-    //say("Harvesting $sourceId")
+    say("Harvesting")
     log(LogLevel.DEBUG,"Harvesting $sourceId","performTask",name)
     if (this.store.getFreeCapacity(RESOURCE_ENERGY) == 0) {
         return ActionOutcome.COMPLETED_ALREADY
@@ -34,6 +34,7 @@ fun Creep.harvestHandler(sourceId: String) :ActionOutcome {
 * T
 * */
 fun Creep.transferHandler(job: Job) :ActionOutcome {
+    say("Transferring")
     var resource: ResourceConstant = job.resource ?: RESOURCE_ENERGY
     var target: StoreOwner = Game.getObjectById<StoreOwner>(job.target_id) ?: return ActionOutcome.INVALID
 
@@ -52,7 +53,11 @@ fun Creep.transferHandler(job: Job) :ActionOutcome {
     log(LogLevel.DEBUG,"transfer to ${target.toString()}","transferHandler",name)
     var r: ScreepsReturnCode = transfer(target, resource)
     when (r)  {
-        OK -> return ActionOutcome.OK
+        OK -> return if (job.structureType == STRUCTURE_TOWER) {
+            ActionOutcome.COMPLETED
+        } else {
+            ActionOutcome.OK
+        }
         ERR_NOT_IN_RANGE -> return moveHandler(target.pos)
         else -> log(LogLevel.ERROR,"Unhandled transfer result $r","transferHandler",name)
     }
@@ -60,6 +65,7 @@ fun Creep.transferHandler(job: Job) :ActionOutcome {
 }
 
 fun Creep.upgradeControllerHandler(targetId: String) :ActionOutcome {
+    say("Upgrading")
     if (this.store.getUsedCapacity(RESOURCE_ENERGY) == 0) { return ActionOutcome.COMPLETED_ALREADY }
     var target: StructureController = Game.getObjectById(targetId) ?: return ActionOutcome.INVALID
 
@@ -75,6 +81,7 @@ fun Creep.upgradeControllerHandler(targetId: String) :ActionOutcome {
 }
 
 fun Creep.buildHandler(targetId: String) :ActionOutcome {
+    say("Building")
     if (this.store.getUsedCapacity(RESOURCE_ENERGY) == 0) { return ActionOutcome.COMPLETED_ALREADY }
     var target: ConstructionSite = Game.getObjectById(targetId) ?: return ActionOutcome.INVALID
     log(LogLevel.DEBUG,"building ${target.toString()}","buildHandler",name)
@@ -91,6 +98,7 @@ fun Creep.buildHandler(targetId: String) :ActionOutcome {
 }
 
 fun Creep.repairHandler(targetId: String) :ActionOutcome {
+    say("Repairing")
     if (this.store.getUsedCapacity(RESOURCE_ENERGY) == 0) { return ActionOutcome.COMPLETED_ALREADY }
     var target: Structure = Game.getObjectById(targetId) ?: return ActionOutcome.INVALID
     if (target.hits == target.hitsMax) { return ActionOutcome.COMPLETED_ALREADY }
@@ -119,6 +127,7 @@ fun Creep.moveHandler(target: RoomPosition) :ActionOutcome {
 }
 
 fun Creep.withdrawHandler(job: Job) :ActionOutcome {
+    say("Withdrawing")
     var resource: ResourceConstant = job.resource ?: RESOURCE_ENERGY
 
     if (this.store.getFreeCapacity(resource) == 0) { return ActionOutcome.COMPLETED_ALREADY }
@@ -140,6 +149,7 @@ fun Creep.withdrawHandler(job: Job) :ActionOutcome {
 }
 
 fun Creep.pickUpHandler(job: Job) :ActionOutcome {
+    say("Picking Up")
     var resource: ResourceConstant = job.resource ?: RESOURCE_ENERGY
     if (this.store.getFreeCapacity(resource) == 0) { return ActionOutcome.COMPLETED_ALREADY }
     var target: Resource = Game.getObjectById<Resource>(job.target_id) ?: return ActionOutcome.INVALID
@@ -151,6 +161,34 @@ fun Creep.pickUpHandler(job: Job) :ActionOutcome {
     when (r)  {
         OK -> return ActionOutcome.OK
         ERR_NOT_IN_RANGE -> return moveHandler(target.pos)
+        else -> log(LogLevel.ERROR,"Unhandled pickup result $r","pickUpHandler",name)
+    }
+    return ActionOutcome.ERROR
+}
+
+
+fun Creep.recycleHandler() :ActionOutcome {
+    say("Recycling")
+    var r = room.find(FIND_MY_SPAWNS)[0].recycleCreep(this)
+    when (r)  {
+        OK -> return ActionOutcome.OK
+        ERR_NOT_IN_RANGE -> return moveHandler(room.find(FIND_MY_SPAWNS)[0].pos)
+        else -> log(LogLevel.ERROR,"Unhandled pickup result $r","pickUpHandler",name)
+    }
+    return ActionOutcome.ERROR
+}
+
+fun Creep.renewHandler() :ActionOutcome {
+    say("Renewing")
+    if (this.ticksToLive > 1450 ) return ActionOutcome.COMPLETED_ALREADY
+    val spawn = room.find(FIND_MY_SPAWNS).firstOrNull { it.spawning == null
+            && it.store.getUsedCapacity(RESOURCE_ENERGY) > 100 // doesnt likve self erget of spwan
+        } ?: return ActionOutcome.INVALID
+    var r = spawn.renewCreep(this)
+    when (r)  {
+        OK -> return if (this.ticksToLive > 1450 ) ActionOutcome.COMPLETED else ActionOutcome.OK
+        ERR_NOT_IN_RANGE -> return moveHandler(room.find(FIND_MY_SPAWNS)[0].pos)
+        ERR_NOT_ENOUGH_RESOURCES -> return ActionOutcome.INVALID //TODO transfers
         else -> log(LogLevel.ERROR,"Unhandled pickup result $r","pickUpHandler",name)
     }
     return ActionOutcome.ERROR

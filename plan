@@ -11,6 +11,7 @@ creeps:
         - should create a pull job
         - create next creep before death
     - commonly used path lay roads
+    - Secondary job, when creep go to miner container and pickup resource, it should also with draw from container
 
 dynamically spwan creeps for job
 Body max size

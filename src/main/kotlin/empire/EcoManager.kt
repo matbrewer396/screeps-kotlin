@@ -167,6 +167,7 @@ class EcoManager {
                     "processIdleCreeps",
                     "${idleCreep.name}"
                 )
+                // Assign creeps to job
                 idleCreep.memory.job_id = j.job_id
                 jobs.find { it.job_id == j.job_id }!!.assignedCreeps += AssignmentEntry(idleCreep.name,
                     when (JobType.valueOf(j.jobType).resourceTransferDirection) {
@@ -174,6 +175,18 @@ class EcoManager {
                         ResourceTransferDirection.INBOUND -> idleCreep.store.getFreeCapacity(j.resource ?: RESOURCE_ENERGY)
                     }
                 )
+                // see if there is second job near by needingin a pickup
+//                if (j.requestedUnit < idleCreep.store.getFreeCapacity()) {
+//                    val secondaryJob = jobs.filter { it.job_id !== j.job_id
+//                            && (abs(it.roomPos.x - j.roomPos.x) + abs(it.roomPos.y - j.roomPos.y)) < 4 // Near by
+//                            && JobType.valueOf(it.jobType).resourceTransferDirection == ResourceTransferDirection.INBOUND
+//                            && JobType.valueOf(it.jobType).validateCreep(it, idleCreep)
+//                    }
+//                    secondaryJob
+//
+//                }
+
+
             }
         }
 
@@ -235,6 +248,9 @@ class EcoManager {
     }
 
     private fun spawnCreepRole(creepRole: CreepRole, spawn: StructureSpawn, room: Room){
+        //max count
+        if (room.getCreepOfRole(creepRole) >= creepRole.noRequired(room)) {return}
+
         // Max size
         val energyAvailable = if (room.energyAvailable > creepRole.maxBodySize) {
             creepRole.maxBodySize
@@ -247,8 +263,8 @@ class EcoManager {
         var jobId: String? = null
         if (creepRole == CreepRole.MINER) {
             jobId = room.memory.jobs
-                .first { it.jobType == JobType.MINING_STATION.name && it.assignedCreeps.isEmpty() }
-                .job_id
+                .firstOrNull() { it.jobType == JobType.MINING_STATION.name && it.assignedCreeps.isEmpty() }
+                ?.job_id
             if (jobId == null) return
         }
 
